@@ -6902,7 +6902,7 @@ HWY_API V Per4LaneBlockShuffle(V v) {
 // ------------------------------ Blocks
 
 template <class D>
-HWY_API size_t Blocks(D d) {
+HWY_API constexpr size_t Blocks(D d) {
   return (d.MaxBytes() <= 16) ? 1 : ((Lanes(d) * sizeof(TFromD<D>) + 15) / 16);
 }
 
