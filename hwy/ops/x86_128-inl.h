@@ -803,8 +803,8 @@ HWY_API Vec128<T, N> IfVecThenElse(Vec128<T, N> mask, Vec128<T, N> yes,
 #define HWY_NATIVE_BITWISE_IF_THEN_ELSE
 #endif
 
-template <class V>
-HWY_API V BitwiseIfThenElse(V mask, V yes, V no) {
+template <class V1, class V2, class V3>
+HWY_API std::common_type_t<V1, V2, V3> BitwiseIfThenElse(V1 mask, V2 yes, V3 no) {
   return IfVecThenElse(mask, yes, no);
 }
 

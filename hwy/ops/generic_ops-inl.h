@@ -7319,12 +7319,13 @@ HWY_API V Sub(V a, V b) {
   return a - b;
 }
 
-template <class V>
-HWY_API V Mul(V a, V b) {
+template <class V1, class V2>
+HWY_API std::common_type_t<V1, V2> Mul(V1 a, V2 b) {
   return a * b;
 }
-template <class V>
-HWY_API V Div(V a, V b) {
+
+template <class V1, class V2>
+HWY_API std::common_type_t<V1, V2> Div(V1 a, V2 b) {
   return a / b;
 }
 template <class V>
