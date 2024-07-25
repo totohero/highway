@@ -249,6 +249,62 @@ HWY_API VFromD<D> BitCast(D d, Vec512<FromT> v) {
   return detail::BitCastFromByte(d, detail::BitCastToByte(v));
 }
 
+// ------------------------------ SetLanes
+
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_UI8_D(D)>
+HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 64> t) {
+  return VFromD<D>{_mm512_set_epi8(
+      t[63], t[62], t[61], t[60], t[59], t[58], t[57], t[56], t[55], t[54],
+      t[53], t[52], t[51], t[50], t[49], t[48], t[47], t[46], t[45], t[44],
+      t[43], t[42], t[41], t[40], t[39], t[38], t[37], t[36], t[35], t[34],
+      t[33], t[32], t[31], t[30], t[29], t[28], t[27], t[26], t[25], t[24],
+      t[23], t[22], t[21], t[20], t[19], t[18], t[17], t[16], t[15], t[14],
+      t[13], t[12], t[11], t[10], t[9], t[8], t[7], t[6], t[5], t[4], t[3],
+      t[2], t[1], t[0])};
+}
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_UI16_D(D)>
+HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 32> t) {
+  return VFromD<D>{
+      _mm512_set_epi16(t[31], t[30], t[29], t[28], t[27], t[26], t[25], t[24],
+                       t[23], t[22], t[21], t[20], t[19], t[18], t[17], t[16],
+                       t[15], t[14], t[13], t[12], t[11], t[10], t[9], t[8],
+                       t[7], t[6], t[5], t[4], t[3], t[2], t[1], t[0])};
+}
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_UI32_D(D)>
+HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 16> t) {
+  return VFromD<D>{_mm512_set_epi32(t[15], t[14], t[13], t[12], t[11], t[10],
+                                    t[9], t[8], t[7], t[6], t[5], t[4], t[3],
+                                    t[2], t[1], t[0])};
+}
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_UI64_D(D)>
+HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 8> t) {
+  return VFromD<D>{_mm512_set_epi64(t[7], t[6], t[5], t[4], t[3], t[2], t[1],
+                                    t[0])};  // NOLINT
+}
+// bfloat16_t is handled by x86_128-inl.h.
+#if HWY_HAVE_FLOAT16
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_F16_D(D)>
+HWY_API Vec512<float16_t> SetLanes(D /* tag */,
+                                   const std::array<TFromD<D>, 32> t) {
+  return Vec512<float16_t>{
+      _mm512_set_ph(t[31], t[30], t[29], t[28], t[27], t[26], t[25], t[24],
+                    t[23], t[22], t[21], t[20], t[19], t[18], t[17], t[16],
+                    t[15], t[14], t[13], t[12], t[11], t[10], t[9], t[8], t[7],
+                    t[6], t[5], t[4], t[3], t[2], t[1], t[0])};
+}
+#endif  // HWY_HAVE_FLOAT16
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_F32_D(D)>
+HWY_API Vec512<float> SetLanes(D /* tag */, const std::array<TFromD<D>, 16> t) {
+  return Vec512<float>{_mm512_set_ps(t[15], t[14], t[13], t[12], t[11], t[10],
+                                     t[9], t[8], t[7], t[6], t[5], t[4], t[3],
+                                     t[2], t[1], t[0])};
+}
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_F64_D(D)>
+HWY_API Vec512<double> SetLanes(D /* tag */, const std::array<TFromD<D>, 8> t) {
+  return Vec512<double>{
+      _mm512_set_pd(t[7], t[6], t[5], t[4], t[3], t[2], t[1], t[0])};
+}
+
 // ------------------------------ Set
 
 template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_T_SIZE_D(D, 1)>
