@@ -6175,7 +6175,7 @@ HWY_API VFromD<D> TruncateTo(D /* tag */, const Vec512<uint16_t> v) {
   return LowerHalf(bytes);
 }
 
-// ------------------------------ Convert integer <=> floating point
+// ------------------------------ Convert integer => floating point
 
 #if HWY_HAVE_FLOAT16
 template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_F16_D(D)>
@@ -6206,6 +6206,20 @@ HWY_API VFromD<D> ConvertTo(D /* tag*/, Vec512<uint32_t> v) {
 template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_F64_D(D)>
 HWY_API VFromD<D> ConvertTo(D /* tag*/, Vec512<uint64_t> v) {
   return VFromD<D>{_mm512_cvtepu64_pd(v.raw)};
+}
+
+// ------------------------------ Convert floating point => integer
+
+#if HWY_HAVE_FLOAT16
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_I16_D(D)>
+HWY_API VFromD<D> ConvertTo(D /* tag */, Vec512<float16_t> v) {
+  return VFromD<D>{_mm512_cvtph_epi16(v.raw)};
+}
+#endif  // HWY_HAVE_FLOAT16
+
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_I32_D(D)>
+HWY_API VFromD<D> ConvertTo(D /* tag */, Vec512<float> v) {
+  return VFromD<D>{_mm512_cvtps_epi32(v.raw)};
 }
 
 // Truncates (rounds toward zero).
