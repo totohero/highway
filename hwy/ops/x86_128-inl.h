@@ -7063,6 +7063,28 @@ HWY_API Vec128<double> TableLookupLanes(Vec128<double> v,
 #endif
 }
 
+template <typename T>
+HWY_API Vec128<T> MaskedTableLookupLanes(Mask128<T> mask, Vec128<T> v,
+                                         Indices128<T> idx) {
+  return IfThenElseZero(mask, TableLookupLanes(v, idx));
+}
+
+template <typename T, size_t N, HWY_IF_T_SIZE(T, 1)>
+HWY_API Vec128<T, N> MaskedTableLookupLanes(Mask128<T> mask, Vec128<T, N> v,
+                                            Indices128<T, N> idx) {
+  return IfThenElseZero(mask, TableLookupBytes(v, Vec128<T, N>{idx.raw}));
+}
+
+template <typename T, size_t N, HWY_IF_UI16(T)>
+HWY_API Vec128<T, N> MaskedTableLookupLanes(Mask128<T> mask, Vec128<T, N> v,
+                                            Indices128<T, N> idx) {
+#if HWY_TARGET <= HWY_AVX3
+  return {_mm_maskz_permutexvar_epi16(mask.raw, idx.raw, v.raw)};
+#else
+  return IfThenElseZero(mask, TableLookupLanes(v, idx));
+#endif
+}
+
 // ------------------------------ ReverseBlocks
 
 // Single block: no change

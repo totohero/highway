@@ -4199,6 +4199,46 @@ HWY_API Vec512<double> TableLookupLanes(Vec512<double> v,
 }
 
 template <typename T, HWY_IF_T_SIZE(T, 1)>
+HWY_API Vec512<T> MaskedTableLookupLanes(Mask512<T> mask, Vec512<T> v,
+                                         Indices512<T> idx) {
+#if HWY_TARGET <= HWY_AVX3_DL
+  return Vec512<T>{_mm512_maskz_permutexvar_epi8(mask.raw, idx.raw, v.raw)};
+#else
+  return IfThenElseZero(mask, TableLookupLanes(v, idx));
+#endif
+}
+
+template <typename T, HWY_IF_T_SIZE(T, 2), HWY_IF_NOT_SPECIAL_FLOAT(T)>
+HWY_API Vec512<T> MaskedTableLookupLanes(Mask512<T> mask, Vec512<T> v,
+                                         Indices512<T> idx) {
+  return Vec512<T>{_mm512_maskz_permutexvar_epi16(mask.raw, idx.raw, v.raw)};
+}
+
+template <typename T, HWY_IF_T_SIZE(T, 4)>
+HWY_API Vec512<T> MaskedTableLookupLanes(Mask512<T> mask, Vec512<T> v,
+                                         Indices512<T> idx) {
+  return Vec512<T>{_mm512_maskz_permutexvar_epi32(mask.raw, idx.raw, v.raw)};
+}
+
+template <typename T, HWY_IF_T_SIZE(T, 8)>
+HWY_API Vec512<T> MaskedTableLookupLanes(Mask512<T> mask, Vec512<T> v,
+                                         Indices512<T> idx) {
+  return Vec512<T>{_mm512_maskz_permutexvar_epi64(mask.raw, idx.raw, v.raw)};
+}
+
+HWY_API Vec512<float> MaskedTableLookupLanes(Mask512<float> mask,
+                                             Vec512<float> v,
+                                             Indices512<float> idx) {
+  return Vec512<float>{_mm512_maskz_permutexvar_ps(mask.raw, idx.raw, v.raw)};
+}
+
+HWY_API Vec512<double> MaskedTableLookupLanes(Mask512<double> mask,
+                                              Vec512<double> v,
+                                              Indices512<double> idx) {
+  return Vec512<double>{_mm512_maskz_permutexvar_pd(mask.raw, idx.raw, v.raw)};
+}
+
+template <typename T, HWY_IF_T_SIZE(T, 1)>
 HWY_API Vec512<T> TwoTablesLookupLanes(Vec512<T> a, Vec512<T> b,
                                        Indices512<T> idx) {
 #if HWY_TARGET <= HWY_AVX3_DL

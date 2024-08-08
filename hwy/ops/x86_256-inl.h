@@ -4602,6 +4602,47 @@ HWY_API Vec256<double> TableLookupLanes(const Vec256<double> v,
 #endif
 }
 
+template <typename T>
+HWY_API Vec256<T> MaskedTableLookupLanes(Mask256<T> mask, Vec256<T> v, Indices256<T> idx) {
+  return IfThenElseZero(mask,TableLookupLanes(v, idx));
+}
+
+template <typename T, HWY_IF_T_SIZE(T, 1)>
+HWY_API Vec256<T> MaskedTableLookupLanes(Mask256<T> mask, Vec256<T> v, Indices256<T> idx) {
+#if HWY_TARGET <= HWY_AVX3_DL
+  return Vec256<T>{_mm256_maskz_permutexvar_epi8(mask.raw, idx.raw, v.raw)};
+#else
+  return IfThenElseZero(mask,TableLookupLanes(v, idx));
+#endif  // HWY_TARGET <= HWY_AVX3_DL
+}
+
+template <typename T, HWY_IF_T_SIZE(T, 2), HWY_IF_NOT_SPECIAL_FLOAT(T)>
+HWY_API Vec256<T> MaskedTableLookupLanes(Mask256<T> mask, Vec256<T> v, Indices256<T> idx) {
+#if HWY_TARGET <= HWY_AVX3
+  return Vec256<T>{_mm256_maskz_permutexvar_epi16(mask.raw, idx.raw, v.raw)};
+#else
+  return IfThenElseZero(mask,TableLookupLanes(v, idx));
+#endif
+}
+
+template <typename T, HWY_IF_T_SIZE(T, 8)>
+HWY_API Vec256<T> MaskedTableLookupLanes(Mask256<T> mask, Vec256<T> v, Indices256<T> idx) {
+#if HWY_TARGET <= HWY_AVX3
+  return Vec256<T>{_mm256_maskz_permutexvar_epi64(mask.raw, idx.raw, v.raw)};
+#else
+  return IfThenElseZero(mask,TableLookupLanes(v, idx));
+#endif
+}
+
+HWY_API Vec256<double> MaskedTableLookupLanes(Mask256<double> mask, const Vec256<double> v,
+                                        const Indices256<double> idx) {
+#if HWY_TARGET <= HWY_AVX3
+  return Vec256<double>{_mm256_maskz_permutexvar_pd(mask.raw, idx.raw, v.raw)};
+#else
+  return IfThenElseZero(mask,TableLookupLanes(v, idx));
+#endif
+}
+
 template <typename T, HWY_IF_T_SIZE(T, 1)>
 HWY_API Vec256<T> TwoTablesLookupLanes(Vec256<T> a, Vec256<T> b,
                                        Indices256<T> idx) {
