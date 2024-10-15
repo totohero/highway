@@ -3288,6 +3288,11 @@ HWY_API TFromD<D> ReduceMax(D d, VFromD<D> v) {
   return detail::MaxOfLanesM(detail::MakeMask(d), v);
 }
 
+template <class D, HWY_IF_REDUCE_D(D)>
+HWY_API TFromD<D> MaskedReduceSum(D, MFromD<D> m, VFromD<D> v) {
+  return detail::SumOfLanesM(m, v);
+}
+
 // ------------------------------ SumOfLanes
 
 template <class D, HWY_IF_LANES_GT_D(D, 1)>

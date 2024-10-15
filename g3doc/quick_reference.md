@@ -2211,6 +2211,10 @@ The following `ReverseN` must not be called if `Lanes(D()) < N`:
     lanes on the RVV target; otherwise, `Lanes(D()) <= LimitsMax<..>()`.
     `indices` are always integers, even if `V` is a floating-point type.
 
+*   <code>V **MaskedTableLookupLanes**(M mask, V a, indices)</code> equivalent 
+    to `IfThenElseZero(mask, TableLookupLanes(a, indices))`, but potentially 
+    slightly more efficient.
+
 *   <code>V **TwoTablesLookupLanes**(D d, V a, V b, unspecified)</code> returns
     a vector of `indices[i] < N ? a[indices[i]] : b[indices[i] - N]`, where
     `unspecified` is the return value of `SetTableIndices(d, &indices[0])` or

@@ -278,51 +278,6 @@ HWY_API Vec256<double> Zero(D /* tag */) {
   return Vec256<double>{_mm256_setzero_pd()};
 }
 
-// ------------------------------ SetLanes
-
-template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_UI8_D(D)>
-HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 32> t) {
-  return VFromD<D>{_mm256_set_epi8(t[31], t[30], t[29], t[28], t[27], t[26],
-                                   t[25], t[24], t[23], t[22], t[21], t[20],
-                                   t[19], t[18], t[17], t[16], t[15], t[14],
-                                   t[13], t[12], t[11], t[10], t[9], t[8], t[7],
-                                   t[6], t[5], t[4], t[3], t[2], t[1], t[0])};
-}
-template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_UI16_D(D)>
-HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 16> t) {
-  return VFromD<D>{_mm256_set_epi16(t[15], t[14], t[13], t[12], t[11], t[10],
-                                    t[9], t[8], t[7], t[6], t[5], t[4], t[3],
-                                    t[2], t[1], t[0])};
-}
-template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_UI32_D(D)>
-HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 8> t) {
-  return VFromD<D>{
-      _mm256_set_epi32(t[7], t[6], t[5], t[4], t[3], t[2], t[1], t[0])};
-}
-template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_UI64_D(D)>
-HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 4> t) {
-  return VFromD<D>{_mm256_set_epi64(t[3], t[2], t[1], t[0])};  // NOLINT
-}
-// bfloat16_t is handled by x86_128-inl.h.
-#if HWY_HAVE_FLOAT16
-template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_F16_D(D)>
-HWY_API Vec256<float16_t> SetLanes(D /* tag */,
-                                   const std::array<TFromD<D>, 16> t) {
-  return Vec256<float16_t>{_mm256_set_ph(t[15], t[14], t[13], t[12], t[11],
-                                         t[10], t[9], t[8], t[7], t[6], t[5],
-                                         t[4], t[3], t[2], t[1], t[0])};
-}
-#endif  // HWY_HAVE_FLOAT16
-template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_F32_D(D)>
-HWY_API Vec256<float> SetLanes(D /* tag */, const std::array<TFromD<D>, 8> t) {
-  return Vec256<float>{
-      _mm256_set_ps(t[7], t[6], t[5], t[4], t[3], t[2], t[1], t[0])};
-}
-template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_F64_D(D)>
-HWY_API Vec256<double> SetLanes(D /* tag */, const std::array<TFromD<D>, 4> t) {
-  return Vec256<double>{_mm256_set_pd(t[3], t[2], t[1], t[0])};
-}
-
 // ------------------------------ Set
 
 template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_T_SIZE_D(D, 1)>
@@ -1255,7 +1210,7 @@ HWY_API Mask256<T> ExclusiveNeither(const Mask256<T> a, Mask256<T> b) {
 
 template <class DTo, HWY_IF_V_SIZE_D(DTo, 32), typename TFrom>
 HWY_API MFromD<DTo> RebindMask(DTo /*tag*/, Mask256<TFrom> m) {
-  static_assert(sizeof(TFrom) == sizeof(TFromD<DTo>), "Must have same size");
+  static_assert(sizeof(Mask256<TFrom>) == sizeof(MFromD<DTo>), "Must have same lanes");
   return MFromD<DTo>{m.raw};
 }
 
@@ -4602,44 +4557,63 @@ HWY_API Vec256<double> TableLookupLanes(const Vec256<double> v,
 #endif
 }
 
-template <typename T>
-HWY_API Vec256<T> MaskedTableLookupLanes(Mask256<T> mask, Vec256<T> v, Indices256<T> idx) {
-  return IfThenElseZero(mask,TableLookupLanes(v, idx));
-}
-
 template <typename T, HWY_IF_T_SIZE(T, 1)>
-HWY_API Vec256<T> MaskedTableLookupLanes(Mask256<T> mask, Vec256<T> v, Indices256<T> idx) {
+HWY_API Vec256<T> MaskedTableLookupLanes(Mask256<T> mask, Vec256<T> v,
+                                         Indices256<T> idx) {
 #if HWY_TARGET <= HWY_AVX3_DL
   return Vec256<T>{_mm256_maskz_permutexvar_epi8(mask.raw, idx.raw, v.raw)};
 #else
-  return IfThenElseZero(mask,TableLookupLanes(v, idx));
+  return IfThenElseZero(mask, TableLookupLanes(v, idx));
 #endif  // HWY_TARGET <= HWY_AVX3_DL
 }
 
 template <typename T, HWY_IF_T_SIZE(T, 2), HWY_IF_NOT_SPECIAL_FLOAT(T)>
-HWY_API Vec256<T> MaskedTableLookupLanes(Mask256<T> mask, Vec256<T> v, Indices256<T> idx) {
+HWY_API Vec256<T> MaskedTableLookupLanes(Mask256<T> mask, Vec256<T> v,
+                                         Indices256<T> idx) {
 #if HWY_TARGET <= HWY_AVX3
   return Vec256<T>{_mm256_maskz_permutexvar_epi16(mask.raw, idx.raw, v.raw)};
 #else
-  return IfThenElseZero(mask,TableLookupLanes(v, idx));
+  return IfThenElseZero(mask, TableLookupLanes(v, idx));
+#endif
+}
+
+template <typename T, HWY_IF_T_SIZE(T, 4)>
+HWY_API Vec256<T> MaskedTableLookupLanes(Mask256<T> mask, Vec256<T> v,
+                                         Indices256<T> idx) {
+#if HWY_TARGET <= HWY_AVX3
+  return Vec256<T>{_mm256_maskz_permutexvar_epi32(mask.raw, idx.raw, v.raw)};
+#else
+  return IfThenElseZero(mask, TableLookupLanes(v, idx));
 #endif
 }
 
 template <typename T, HWY_IF_T_SIZE(T, 8)>
-HWY_API Vec256<T> MaskedTableLookupLanes(Mask256<T> mask, Vec256<T> v, Indices256<T> idx) {
+HWY_API Vec256<T> MaskedTableLookupLanes(Mask256<T> mask, Vec256<T> v,
+                                         Indices256<T> idx) {
 #if HWY_TARGET <= HWY_AVX3
   return Vec256<T>{_mm256_maskz_permutexvar_epi64(mask.raw, idx.raw, v.raw)};
 #else
-  return IfThenElseZero(mask,TableLookupLanes(v, idx));
+  return IfThenElseZero(mask, TableLookupLanes(v, idx));
 #endif
 }
 
-HWY_API Vec256<double> MaskedTableLookupLanes(Mask256<double> mask, const Vec256<double> v,
-                                        const Indices256<double> idx) {
+HWY_API Vec256<float> MaskedTableLookupLanes(Mask256<float> mask,
+                                             const Vec256<float> v,
+                                             const Indices256<float> idx) {
+#if HWY_TARGET <= HWY_AVX3
+  return Vec256<float>{_mm256_maskz_permutexvar_ps(mask.raw, idx.raw, v.raw)};
+#else
+  return IfThenElseZero(mask, TableLookupLanes(v, idx));
+#endif
+}
+
+HWY_API Vec256<double> MaskedTableLookupLanes(Mask256<double> mask,
+                                              const Vec256<double> v,
+                                              const Indices256<double> idx) {
 #if HWY_TARGET <= HWY_AVX3
   return Vec256<double>{_mm256_maskz_permutexvar_pd(mask.raw, idx.raw, v.raw)};
 #else
-  return IfThenElseZero(mask,TableLookupLanes(v, idx));
+  return IfThenElseZero(mask, TableLookupLanes(v, idx));
 #endif
 }
 
@@ -8786,7 +8760,20 @@ HWY_API Mask256<T> SetAtOrBeforeFirst(Mask256<T> mask) {
 }
 #endif  // HWY_TARGET <= HWY_AVX3
 
-// ------------------------------ Reductions in generic_ops
+// ------------------------------ Reductions
+#if HWY_HAVE_FLOAT16
+template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_F16_D(D)>
+HWY_API hwy::float16_t ReduceSum(D, Vec256<hwy::float16_t> v) {
+  return _mm256_reduce_add_ph(v.raw);
+}
+#endif  // HWY_HAVE_FLOAT16
+
+#if HWY_HAVE_FLOAT16
+template <class D, HWY_IF_V_SIZE_D(D, 32), HWY_IF_F16_D(D)>
+HWY_API float MaskedReduceSum(D, Mask256<hwy::float16_t> mask, Vec256<hwy::float16_t> v) {
+  return ReduceSum(D(), IfThenElseZero(mask, v));
+}
+#endif
 
 // ------------------------------ BitShuffle
 #if HWY_TARGET <= HWY_AVX3_DL

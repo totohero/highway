@@ -22,6 +22,7 @@
 // the generic implementation here if native ops are already defined.
 
 #include "hwy/base.h"
+#include <array>
 
 // Define detail::Shuffle1230 etc, but only when viewing the current header;
 // normally this is included via highway.h, which includes ops/*.h.
@@ -2419,6 +2420,11 @@ HWY_API VFromD<D> LoadNOr(VFromD<D> no, D d, const TFromD<D>* HWY_RESTRICT p,
 
 #endif  // HWY_MEM_OPS_MIGHT_FAULT && !HWY_HAVE_SCALABLE
 #endif  // HWY_NATIVE_LOAD_N
+
+template <class D, size_t N = MaxLanes(D())>
+HWY_API VFromD<D> SetLanes(D d, const std::array<TFromD<D>, N>&& p) {
+  return MaskedLoad(FirstN(d, N), d, p.data());
+}
 
 // ------------------------------ StoreN
 #if (defined(HWY_NATIVE_STORE_N) == defined(HWY_TARGET_TOGGLE))
@@ -6270,6 +6276,13 @@ HWY_API VFromD<D> TwoTablesLookupLanes(D /*d*/, VFromD<D> a, VFromD<D> b,
   return TwoTablesLookupLanes(a, b, idx);
 }
 #endif
+
+// ------------------------------ MaskedTableLookupLanes
+template <class V>
+HWY_API V MaskedTableLookupLanes(MFromD<DFromV<V>> mask, V v,
+                                 IndicesFromD<DFromV<V>> idx) {
+  return IfThenElseZero(mask, TableLookupLanes(v, idx));
+}
 
 // ------------------------------ Reverse2, Reverse4, Reverse8 (8-bit)
 

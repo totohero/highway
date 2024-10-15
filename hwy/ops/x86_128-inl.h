@@ -313,45 +313,6 @@ HWY_API VFromD<D> BitCast(D d,
   return detail::BitCastFromByte(d, detail::BitCastToByte(v));
 }
 
-// ------------------------------ SetLanes
-
-template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_UI8_D(D)>
-HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 16> t) {
-  return VFromD<D>{_mm_set_epi8(t[15], t[14], t[13], t[12], t[11], t[10], t[9],
-                                t[8], t[7], t[6], t[5], t[4], t[3], t[2], t[1],
-                                t[0])};
-}
-template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_UI16_D(D)>
-HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 8> t) {
-  return VFromD<D>{
-      _mm_set_epi16(t[7], t[6], t[5], t[4], t[3], t[2], t[1], t[0])};
-}
-template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_UI32_D(D)>
-HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 4> t) {
-  return VFromD<D>{_mm_set_epi32(t[3], t[2], t[1], t[0])};
-}
-template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_UI64_D(D)>
-HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 2> t) {
-  return VFromD<D>{_mm_set_epi64(t[1], t[0])};  // NOLINT
-}
-// bfloat16_t is handled by x86_128-inl.h.
-#if HWY_HAVE_FLOAT16
-template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_F16_D(D)>
-HWY_API Vec128<float16_t> SetLanes(D /* tag */,
-                                   const std::array<TFromD<D>, 8> t) {
-  return Vec128<float16_t>{
-      _mm_set_ph(t[7], t[6], t[5], t[4], t[3], t[2], t[1], t[0])};
-}
-#endif  // HWY_HAVE_FLOAT16
-template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_F32_D(D)>
-HWY_API Vec128<float> SetLanes(D /* tag */, const std::array<TFromD<D>, 4> t) {
-  return Vec128<float>{_mm_set_ps(t[3], t[2], t[1], t[0])};
-}
-template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_F64_D(D)>
-HWY_API Vec128<double> SetLanes(D /* tag */, const std::array<TFromD<D>, 2> t) {
-  return Vec128<double>{_mm_set_pd(t[1], t[0])};
-}
-
 // ------------------------------ Set
 
 template <class D, HWY_IF_V_SIZE_LE_D(D, 16), HWY_IF_T_SIZE_D(D, 1)>
@@ -1406,7 +1367,7 @@ HWY_API VFromD<D> VecFromMask(D /* tag */, MFromD<D> v) {
 
 template <typename TFrom, size_t NFrom, class DTo, HWY_IF_V_SIZE_LE_D(DTo, 16)>
 HWY_API MFromD<DTo> RebindMask(DTo /* tag */, Mask128<TFrom, NFrom> m) {
-  static_assert(sizeof(TFrom) == sizeof(TFromD<DTo>), "Must have same size");
+  static_assert(sizeof(Mask128<TFrom>) == sizeof(MFromD<DTo>), "Must have same lanes");
   return MFromD<DTo>{m.raw};
 }
 
@@ -7063,16 +7024,15 @@ HWY_API Vec128<double> TableLookupLanes(Vec128<double> v,
 #endif
 }
 
-template <typename T>
-HWY_API Vec128<T> MaskedTableLookupLanes(Mask128<T> mask, Vec128<T> v,
-                                         Indices128<T> idx) {
-  return IfThenElseZero(mask, TableLookupLanes(v, idx));
-}
 
 template <typename T, size_t N, HWY_IF_T_SIZE(T, 1)>
 HWY_API Vec128<T, N> MaskedTableLookupLanes(Mask128<T> mask, Vec128<T, N> v,
                                             Indices128<T, N> idx) {
-  return IfThenElseZero(mask, TableLookupBytes(v, Vec128<T, N>{idx.raw}));
+#if HWY_TARGET <= HWY_AVX3_DL
+  return {_mm_maskz_permutexvar_epi8(mask.raw, idx.raw, v.raw)};
+#else
+  return IfThenElseZero(mask, TableLookupLanes(v, idx));
+#endif
 }
 
 template <typename T, size_t N, HWY_IF_UI16(T)>
@@ -13604,8 +13564,12 @@ HWY_API Mask128<T, N> SetAtOrBeforeFirst(Mask128<T, N> mask) {
 #endif  // HWY_TARGET <= HWY_AVX3
 
 // ------------------------------ Reductions
-
-// Nothing fully native, generic_ops-inl defines SumOfLanes and ReduceSum.
+#if HWY_HAVE_FLOAT16
+template <class D, HWY_IF_V_SIZE_D(D, 16), HWY_IF_F16_D(D)>
+HWY_API hwy::float16_t ReduceSum(D, Vec128<hwy::float16_t> v) {
+  return _mm_reduce_add_ph(v.raw);
+}
+#endif  // HWY_HAVE_FLOAT16
 
 // We provide specializations of u8x8 and u8x16, so exclude those.
 #undef HWY_IF_SUM_OF_LANES_D

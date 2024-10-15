@@ -249,62 +249,6 @@ HWY_API VFromD<D> BitCast(D d, Vec512<FromT> v) {
   return detail::BitCastFromByte(d, detail::BitCastToByte(v));
 }
 
-// ------------------------------ SetLanes
-
-template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_UI8_D(D)>
-HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 64> t) {
-  return VFromD<D>{_mm512_set_epi8(
-      t[63], t[62], t[61], t[60], t[59], t[58], t[57], t[56], t[55], t[54],
-      t[53], t[52], t[51], t[50], t[49], t[48], t[47], t[46], t[45], t[44],
-      t[43], t[42], t[41], t[40], t[39], t[38], t[37], t[36], t[35], t[34],
-      t[33], t[32], t[31], t[30], t[29], t[28], t[27], t[26], t[25], t[24],
-      t[23], t[22], t[21], t[20], t[19], t[18], t[17], t[16], t[15], t[14],
-      t[13], t[12], t[11], t[10], t[9], t[8], t[7], t[6], t[5], t[4], t[3],
-      t[2], t[1], t[0])};
-}
-template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_UI16_D(D)>
-HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 32> t) {
-  return VFromD<D>{
-      _mm512_set_epi16(t[31], t[30], t[29], t[28], t[27], t[26], t[25], t[24],
-                       t[23], t[22], t[21], t[20], t[19], t[18], t[17], t[16],
-                       t[15], t[14], t[13], t[12], t[11], t[10], t[9], t[8],
-                       t[7], t[6], t[5], t[4], t[3], t[2], t[1], t[0])};
-}
-template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_UI32_D(D)>
-HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 16> t) {
-  return VFromD<D>{_mm512_set_epi32(t[15], t[14], t[13], t[12], t[11], t[10],
-                                    t[9], t[8], t[7], t[6], t[5], t[4], t[3],
-                                    t[2], t[1], t[0])};
-}
-template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_UI64_D(D)>
-HWY_API VFromD<D> SetLanes(D /* tag */, const std::array<TFromD<D>, 8> t) {
-  return VFromD<D>{_mm512_set_epi64(t[7], t[6], t[5], t[4], t[3], t[2], t[1],
-                                    t[0])};  // NOLINT
-}
-// bfloat16_t is handled by x86_128-inl.h.
-#if HWY_HAVE_FLOAT16
-template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_F16_D(D)>
-HWY_API Vec512<float16_t> SetLanes(D /* tag */,
-                                   const std::array<TFromD<D>, 32> t) {
-  return Vec512<float16_t>{
-      _mm512_set_ph(t[31], t[30], t[29], t[28], t[27], t[26], t[25], t[24],
-                    t[23], t[22], t[21], t[20], t[19], t[18], t[17], t[16],
-                    t[15], t[14], t[13], t[12], t[11], t[10], t[9], t[8], t[7],
-                    t[6], t[5], t[4], t[3], t[2], t[1], t[0])};
-}
-#endif  // HWY_HAVE_FLOAT16
-template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_F32_D(D)>
-HWY_API Vec512<float> SetLanes(D /* tag */, const std::array<TFromD<D>, 16> t) {
-  return Vec512<float>{_mm512_set_ps(t[15], t[14], t[13], t[12], t[11], t[10],
-                                     t[9], t[8], t[7], t[6], t[5], t[4], t[3],
-                                     t[2], t[1], t[0])};
-}
-template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_F64_D(D)>
-HWY_API Vec512<double> SetLanes(D /* tag */, const std::array<TFromD<D>, 8> t) {
-  return Vec512<double>{
-      _mm512_set_pd(t[7], t[6], t[5], t[4], t[3], t[2], t[1], t[0])};
-}
-
 // ------------------------------ Set
 
 template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_T_SIZE_D(D, 1)>
@@ -2373,6 +2317,24 @@ HWY_API Vec512<double> MulAddSub(Vec512<double> mul, Vec512<double> x,
   return Vec512<double>{_mm512_fmaddsub_pd(mul.raw, x.raw, sub_or_add.raw)};
 }
 
+#if HWY_HAVE_FLOAT16
+
+HWY_API Vec512<float16_t> Conj(Vec512<float16_t> x) {
+  return Vec512<float16_t>{_mm512_conj_pch(x.raw)};
+}
+
+HWY_API Vec512<float16_t> CMul(Vec512<float16_t> mul, Vec512<float16_t> x) {
+  return Vec512<float16_t>{_mm512_fcmul_pch(mul.raw, x.raw)};
+}
+
+HWY_API Vec512<float16_t> CMulAdd(Vec512<float16_t> mul, Vec512<float16_t> x,
+                                 Vec512<float16_t> add) {
+  return Vec512<float16_t>{_mm512_fmadd_pch(mul.raw, x.raw, add.raw)};
+}
+
+#endif  // HWY_HAVE_FLOAT16
+
+
 // ------------------------------ Floating-point square root
 
 // Full precision square root
@@ -2480,7 +2442,7 @@ HWY_DIAGNOSTICS(pop)
 
 template <class DTo, typename TFrom>
 HWY_API MFromD<DTo> RebindMask(DTo /*tag*/, Mask512<TFrom> m) {
-  static_assert(sizeof(TFrom) == sizeof(TFromD<DTo>), "Must have same size");
+  static_assert(sizeof(Mask512<TFrom>) == sizeof(MFromD<DTo>), "Must have same lanes");
   return MFromD<DTo>{m.raw};
 }
 
@@ -8165,6 +8127,50 @@ HWY_INLINE VFromD<D> ReduceAcrossBlocks(D d, Func f, VFromD<D> v) {
 }
 
 }  // namespace detail
+
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_I32_D(D)>
+HWY_API int32_t ReduceSum(D, Vec512<int32_t> v) {
+  return _mm512_reduce_add_epi32(v.raw);
+}
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_I64_D(D)>
+HWY_API int64_t ReduceSum(D, Vec512<int64_t> v) {
+  return _mm512_reduce_add_epi64(v.raw);
+}
+
+#if HWY_HAVE_FLOAT16
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_F16_D(D)>
+HWY_API hwy::float16_t ReduceSum(D, Vec512<hwy::float16_t> v) {
+  return _mm512_reduce_add_ph(v.raw);
+}
+#endif  // HWY_HAVE_FLOAT16
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_F32_D(D)>
+HWY_API float ReduceSum(D, Vec512<float> v) {
+  return _mm512_reduce_add_ps(v.raw);
+}
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_F64_D(D)>
+HWY_API double ReduceSum(D, Vec512<double> v) {
+  return _mm512_reduce_add_pd(v.raw);
+}
+
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_I64_D(D)>
+HWY_API int64_t MaskedReduceSum(D, Mask512<int64_t> mask, Vec512<int64_t> v) {
+  return _mm512_mask_reduce_add_epi64(mask.raw, v.raw);
+}
+
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_I32_D(D)>
+HWY_API int64_t MaskedReduceSum(D, Mask512<int32_t> mask, Vec512<int32_t> v) {
+  return _mm512_mask_reduce_add_epi32(mask.raw, v.raw);
+}
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_F32_D(D)>
+HWY_API float MaskedReduceSum(D, Mask512<float> mask, Vec512<float> v) {
+  return _mm512_mask_reduce_add_ps(mask.raw, v.raw);
+}
+#if HWY_HAVE_FLOAT16
+template <class D, HWY_IF_V_SIZE_D(D, 64), HWY_IF_F16_D(D)>
+HWY_API float MaskedReduceSum(D, Mask512<hwy::float16_t> mask, Vec512<hwy::float16_t> v) {
+  return ReduceSum(D(), IfThenElseZero(mask, v));
+}
+#endif
 
 // ------------------------------ BitShuffle
 #if HWY_TARGET <= HWY_AVX3_DL

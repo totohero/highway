@@ -102,6 +102,121 @@ HWY_NOINLINE void TestAllTableLookupLanes() {
   ForAllTypes(ForPartialVectors<TestTableLookupLanes>());
 }
 
+struct TestMaskedTableLookupLanes {
+  template <class T, class D>
+  HWY_NOINLINE void operator()(T /*unused*/, D d) {
+    const RebindToSigned<D> di;
+    using TI = TFromD<decltype(di)>;
+#if HWY_TARGET != HWY_SCALAR
+    const size_t N = Lanes(d);
+    auto idx = AllocateAligned<TI>(N);
+    auto expected_odd = AllocateAligned<T>(N);
+    auto expected_even = AllocateAligned<T>(N);
+    HWY_ASSERT(idx && expected_odd && expected_even);
+    ZeroBytes(idx.get(), N * sizeof(TI));
+    const auto v = Iota(d, 1);
+    const auto mask_odd =
+        RebindMask(d, Eq(And(Iota(di, 0), Set(di, 1)), Zero(di)));
+    const auto mask_even = Not(mask_odd);
+    if (N <= 8) {  // Test all permutations
+      for (size_t i0 = 0; i0 < N; ++i0) {
+        idx[0] = static_cast<TI>(i0);
+
+        for (size_t i1 = 0; i1 < N; ++i1) {
+          if (N >= 2) idx[1] = static_cast<TI>(i1);
+          for (size_t i2 = 0; i2 < N; ++i2) {
+            if (N >= 4) idx[2] = static_cast<TI>(i2);
+            for (size_t i3 = 0; i3 < N; ++i3) {
+              if (N >= 4) idx[3] = static_cast<TI>(i3);
+
+              for (size_t i = 0; i < N; ++i) {
+                expected_odd[i] = ((i + 1) & 1) ? ConvertScalarTo<T>(idx[i] + 1)
+                                                : ConvertScalarTo<T>(0);
+                expected_even[i] = (i & 1) ? ConvertScalarTo<T>(idx[i] + 1)
+                                           : ConvertScalarTo<T>(0);
+              }
+              const auto opaque1 = IndicesFromVec(d, Load(di, idx.get()));
+              const auto actual1 = MaskedTableLookupLanes(mask_odd, v, opaque1);
+              HWY_ASSERT_VEC_EQ(d, expected_odd.get(), actual1);
+
+              const auto opaque2 = SetTableIndices(d, idx.get());
+              const auto actual2 = MaskedTableLookupLanes(mask_odd, v, opaque2);
+              HWY_ASSERT_VEC_EQ(d, expected_odd.get(), actual2);
+
+              const auto opaque3 = IndicesFromVec(d, Load(di, idx.get()));
+              const auto actual3 =
+                  MaskedTableLookupLanes(mask_even, v, opaque3);
+              HWY_ASSERT_VEC_EQ(d, expected_even.get(), actual3);
+
+              const auto opaque4 = SetTableIndices(d, idx.get());
+              const auto actual4 =
+                  MaskedTableLookupLanes(mask_even, v, opaque4);
+              HWY_ASSERT_VEC_EQ(d, expected_even.get(), actual4);
+            }
+          }
+        }
+      }
+    } else {
+      // Too many permutations to test exhaustively; choose one with repeated
+      // and cross-block indices and ensure indices do not exceed #lanes.
+      // For larger vectors, upper lanes will be zero.
+      HWY_ALIGN TI idx_source[16] = {1,  3,  2,  2,  8, 1, 7, 6,
+                                     15, 14, 14, 15, 4, 9, 8, 5};
+
+      for (size_t i = 0; i < N; ++i) {
+        idx[i] = (i < 16) ? idx_source[i] : 0;
+        // Avoid undefined results / asan error for scalar by capping
+        if (idx[i] >= static_cast<TI>(N)) {
+          idx[i] = static_cast<TI>(N - 1);
+        }
+        expected_odd[i] = ((i + 1) & 1) ? ConvertScalarTo<T>(idx[i] + 1)
+                                        : ConvertScalarTo<T>(0);
+        expected_even[i] =
+            (i & 1) ? ConvertScalarTo<T>(idx[i] + 1) : ConvertScalarTo<T>(0);
+      }
+
+      const auto opaque1 = IndicesFromVec(d, Load(di, idx.get()));
+      const auto actual1 = MaskedTableLookupLanes(mask_odd, v, opaque1);
+      HWY_ASSERT_VEC_EQ(d, expected_odd.get(), actual1);
+
+      const auto opaque2 = SetTableIndices(d, idx.get());
+      const auto actual2 = MaskedTableLookupLanes(mask_odd, v, opaque2);
+      HWY_ASSERT_VEC_EQ(d, expected_odd.get(), actual2);
+
+      const auto opaque3 = IndicesFromVec(d, Load(di, idx.get()));
+      const auto actual3 = MaskedTableLookupLanes(mask_even, v, opaque3);
+      HWY_ASSERT_VEC_EQ(d, expected_even.get(), actual3);
+
+      const auto opaque4 = SetTableIndices(d, idx.get());
+      const auto actual4 = MaskedTableLookupLanes(mask_even, v, opaque4);
+      HWY_ASSERT_VEC_EQ(d, expected_even.get(), actual4);
+    }
+#else
+    const TI index = 0;
+    const auto v = Set(d, 1);
+    const auto mask_even = FirstN(d, 1);
+    const auto mask_odd = Not(mask_even);
+
+    auto v_odd = IfThenElseZero(mask_odd, v);
+    auto v_even = IfThenElseZero(mask_even, v);
+
+    const auto opaque1 = SetTableIndices(d, &index);
+    HWY_ASSERT_VEC_EQ(d, v_odd, MaskedTableLookupLanes(mask_odd, v, opaque1));
+    const auto opaque2 = IndicesFromVec(d, Zero(di));
+    HWY_ASSERT_VEC_EQ(d, v_odd, MaskedTableLookupLanes(mask_odd, v, opaque2));
+
+    const auto opaque3 = SetTableIndices(d, &index);
+    HWY_ASSERT_VEC_EQ(d, v_even, MaskedTableLookupLanes(mask_even, v, opaque3));
+    const auto opaque4 = IndicesFromVec(d, Zero(di));
+    HWY_ASSERT_VEC_EQ(d, v_even, MaskedTableLookupLanes(mask_even, v, opaque4));
+#endif
+  }
+};
+
+HWY_NOINLINE void TestAllMaskedTableLookupLanes() {
+  ForAllTypes(ForPartialVectors<TestMaskedTableLookupLanes>());
+}
+
 struct TestTwoTablesLookupLanes {
   template <class T, class D>
   HWY_NOINLINE void operator()(T /*unused*/, D d) {
@@ -203,6 +318,7 @@ HWY_AFTER_NAMESPACE();
 namespace hwy {
 HWY_BEFORE_TEST(HwyTableTest);
 HWY_EXPORT_AND_TEST_P(HwyTableTest, TestAllTableLookupLanes);
+HWY_EXPORT_AND_TEST_P(HwyTableTest, TestAllMaskedTableLookupLanes);
 HWY_EXPORT_AND_TEST_P(HwyTableTest, TestAllTwoTablesLookupLanes);
 HWY_AFTER_TEST();
 }  // namespace hwy
